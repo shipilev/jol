@@ -79,7 +79,7 @@ public class ASCIITable {
         for (int c = 0; c < numberColumns; c++) {
             pw.printf(" %15s", columns[c]);
         }
-        pw.println("   " + columns[numberColumns]);
+        pw.println("    " + columns[numberColumns]);
         pw.println("------------------------------------------------------------------------------------------------");
 
 

@@ -309,6 +309,14 @@ public class ClassData {
         return name;
     }
 
+    public String prettyName() {
+        if (isArray) {
+            return name.substring(0, name.length() - 1) + length + "]";
+        } else {
+            return name;
+        }
+    }
+
     /**
      * Is this class data for the array?
      *
