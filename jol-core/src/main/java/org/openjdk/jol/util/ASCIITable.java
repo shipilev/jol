@@ -111,7 +111,7 @@ public class ASCIITable {
             for (int c = 0; c < numberColumns; c++) {
                 pw.printf(" %15s", "...");
             }
-            pw.printf(" %s%n", "...");
+            pw.printf("    %s%n", "...");
             for (int c = 0; c < numberColumns; c++) {
                 pw.printf(" %,15d", sums[c] - tops[c]);
             }
