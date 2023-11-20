@@ -30,10 +30,12 @@ import org.openjdk.jol.heap.HeapDumpReader;
 import org.openjdk.jol.info.ClassData;
 import org.openjdk.jol.layouters.HotSpotLayouter;
 import org.openjdk.jol.layouters.Layouter;
+import org.openjdk.jol.util.ASCIITable;
 import org.openjdk.jol.util.Multimap;
 import org.openjdk.jol.util.Multiset;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.ByteBuffer;
@@ -92,7 +94,7 @@ public class HeapDumpStringDedup implements Operation {
         out.println(layouter);
         out.println();
 
-        out.println(svv.computeDuplicates(layouter));
+        svv.computeDuplicates(out, layouter);
         out.println();
     }
 
@@ -201,74 +203,41 @@ public class HeapDumpStringDedup implements Operation {
             }
         }
 
-        public String computeDuplicates(Layouter layouter) {
+        public void computeDuplicates(PrintStream ps, Layouter layouter) {
             long stringSize = layouter.layout(ClassData.parseClass(String.class)).instanceSize();
 
-            Map<Integer, Long> lenToSize = new HashMap<>();
-            for (StringContents ba : contents.keys()) {
-                ClassData cd = new ClassData(ba.componentType + "[]", ba.componentType, ba.length);
-                lenToSize.put(ba.length, layouter.layout(cd).instanceSize());
-            }
+            ASCIITable table = new ASCIITable(30,
+                            "Duplicate Strings:\n" +
+                            "  DUPS: Number of duplicated String instances\n" +
+                            "  SIZE (V): Total size taken by duplicated String.value-s, amenable to GC dedup\n" +
+                            "  SIZE (S+V): Total size taken by duplicated String, along with String objects",
+                    "DUPS", "SIZE (V)", "SIZE (S+V)", "VALUE");
 
-            List<StringContents> sorted = new ArrayList<>(contents.keys());
-            sorted.sort((c1, c2) -> Long.compare(
-                    (contents.count(c2) - 1) * lenToSize.get(c2.length),
-                    (contents.count(c1) - 1) * lenToSize.get(c1.length))
-            );
-
-
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-
-            pw.println("Duplicate Strings:");
-            pw.println("  DUPS: Number of duplicated String instances");
-            pw.println("  SIZE (V): Total size taken by duplicated String.value-s, amenable to GC dedup");
-            pw.println("  SIZE (S+V): Total size taken by duplicated String, along with String objects");
-            pw.println();
-
-            pw.printf(" %15s %15s %15s   %s%n", "DUPS", "SIZE (V)", "SIZE (S+V)", "VALUE");
-            pw.println("------------------------------------------------------------------------------------------------");
-
-            long top = 30;
-            long excessC = 0;
-            long excessV = 0;
-            long excessSV = 0;
-
-            long topC = 0;
-            long topV = 0;
-            long topSV = 0;
-
-            for (StringContents sc : sorted) {
+            for (StringContents sc : contents.keys()) {
                 long count = contents.count(sc) - 1;
-                long sizeV = lenToSize.get(sc.length);
-                long sizeSV = sizeV + stringSize;
-
                 if (count > 0) {
-                    long sumV = count * sizeV;
-                    long sumSV = count * sizeSV;
-                    if (top-- > 0) {
-                        pw.printf(" %,15d %,15d %,15d   %s%s%n",
-                                count, sumV, sumSV,
-                                sc.value(),
-                                (sc.length > 32) ? "... (" + sc.length + " chars)" : "");
-                        topC += count;
-                        topV += sumV;
-                        topSV += sumSV;
-                    }
-                    excessV += sumV;
-                    excessSV += sumSV;
-                    excessC += count;
+                    ClassData cd = new ClassData(sc.componentType + "[]", sc.componentType, sc.length);
+                    long size = layouter.layout(cd).instanceSize();
+                    table.addLine(
+                            sc.value() + ((sc.length > 32) ? "... (" + sc.length + " chars)" : ""),
+                            count,
+                            count * size,
+                            count * (size + stringSize)
+                    );
                 }
             }
-            if (top <= 0) {
-                pw.printf(" %,15d %,15d %,15d   %s%n", excessC - topC, excessV - topV, excessSV - topSV, "<other>");
-            }
-            pw.println("------------------------------------------------------------------------------------------------");
-            pw.printf(" %,15d %,15d %,15d   %s%n", excessC, excessV, excessSV, "<total>");
-            pw.println();
 
-            pw.close();
-            return sw.toString();
+            // Sort by total size
+            table.sortReversed(0);
+            table.print(ps);
+
+            // Sort by total size
+            table.sortReversed(1);
+            table.print(ps);
+
+            // Sort by total size
+            table.sortReversed(2);
+            table.print(ps);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,105 @@
  */
 package org.openjdk.jol.util;
 
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 public class ASCIITable {
 
     private final int top;
+    private final String header;
+    private final int numberColumns;
     private final String[] columns;
 
-    public ASCIITable(int top, String... columns) {
+    private final List<Line> lines;
+
+    public ASCIITable(int top, String header, String... columns) {
         this.top = top;
+        this.header = header;
         this.columns = columns;
+        this.numberColumns = columns.length - 1;
+        this.lines = new ArrayList<>();
     }
 
-    public void addLine(String value, Number... numbers) {
+    private static class Line {
+        private final Long[] numbers;
+        private final String value;
+
+        public Line(String value, Long[] numbers) {
+            this.numbers = numbers;
+            this.value = value;
+        }
+    }
+
+    public void addLine(String value, Long... numbers) {
+        lines.add(new Line(value, numbers));
+    }
+
+    public void sort(int column) {
+        lines.sort(Comparator.comparing(l -> l.numbers[column]));
+    }
+
+    public void sortReversed(int column) {
+        lines.sort(Comparator.comparing((Line l) -> l.numbers[column]).reversed());
+    }
+
+    public void print(PrintStream ps) {
+        PrintWriter pw = new PrintWriter(ps);
+        print(pw);
+        pw.flush();
+    }
+
+    public void print(PrintWriter pw) {
+        pw.println(header);
+        pw.println();
+
+        for (int c = 0; c < numberColumns; c++) {
+            pw.printf(" %15s", columns[c]);
+        }
+        pw.println("   " + columns[numberColumns]);
+        pw.println("------------------------------------------------------------------------------------------------");
+
+
+        long[] tops = new long[numberColumns];
+        long[] sums = new long[numberColumns];
+
+        int current = 0;
+
+        for (Line l : lines) {
+            if (current < top) {
+                for (int c = 0; c < numberColumns; c++) {
+                    pw.printf(" %,15d", l.numbers[c]);
+                    tops[c] += l.numbers[c];
+                    sums[c] += l.numbers[c];
+                }
+                pw.printf("    %s%n", l.value);
+            } else {
+                for (int c = 0; c < numberColumns; c++) {
+                    sums[c] += l.numbers[c];
+                }
+            }
+            current++;
+        }
+
+        if (current > top) {
+            for (int c = 0; c < numberColumns; c++) {
+                pw.printf(" %15s", "...");
+            }
+            pw.printf(" %s%n", "...");
+            for (int c = 0; c < numberColumns; c++) {
+                pw.printf(" %,15d", sums[c] - tops[c]);
+            }
+            pw.printf("    %s%n", "<other>");
+        }
+        pw.println("------------------------------------------------------------------------------------------------");
+        for (int c = 0; c < numberColumns; c++) {
+            pw.printf(" %,15d", sums[c]);
+        }
+        pw.printf("    %s%n", "<total>");
+        pw.println();
     }
 
 }
