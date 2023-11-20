@@ -165,7 +165,7 @@ public class HeapDumpDuplicates implements Operation {
                 if (contentsIsZero) {
                     return "{ 0 }";
                 } else {
-                    return "(hash: " + contents + ")";
+                    return "(hash: " + Long.toHexString(contents) + ")";
                 }
             }
 
@@ -249,7 +249,7 @@ public class HeapDumpDuplicates implements Operation {
                 if (contentsIsZero) {
                     return "{ 0, ..., 0 }";
                 } else {
-                    return "(hash: " + contents + ")";
+                    return "(hash: " + Long.toHexString(contents) + ")";
                 }
             }
 

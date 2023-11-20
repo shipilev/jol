@@ -92,7 +92,8 @@ public class HeapDumpStringDedup implements Operation {
         out.println(layouter);
         out.println();
 
-        out.println(svv.computeDuplicateContents(layouter));
+        out.println(svv.computeDuplicates(layouter));
+        out.println();
     }
 
     public static class StringContents {
@@ -217,7 +218,9 @@ public class HeapDumpStringDedup implements Operation {
             }
         }
 
-        public String computeDuplicateContents(Layouter layouter) {
+        public String computeDuplicates(Layouter layouter) {
+            long stringSize = layouter.layout(ClassData.parseClass(String.class)).instanceSize();
+
             Map<Integer, Long> lenToSize = new HashMap<>();
             for (StringContents ba : contents.keys()) {
                 ClassData cd = new ClassData(ba.componentType + "[]", ba.componentType, ba.length);
@@ -230,80 +233,55 @@ public class HeapDumpStringDedup implements Operation {
                     (contents.count(c1) - 1) * lenToSize.get(c1.length))
             );
 
-            long top = 30;
-            long excess = 0;
 
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
 
-            pw.println("String instances potential duplicates:");
-
-            pw.printf(" %13s %13s %13s   %s%n", "DUPS", "SUM SIZE", "LENGTH", "VALUE");
-            pw.println("------------------------------------------------------------------------------------------------");
-
-            for (StringContents sc : sorted) {
-                long count = contents.count(sc) - 1;
-                long intSize = lenToSize.get(sc.length);
-
-                if (count > 0) {
-                    long sumSize = count * intSize;
-                    if (top-- > 0) {
-                        pw.printf(" %13d %13d %13d   %s%s%n", count, sumSize, sc.length, sc.value(), (sc.length > 32) ? "..." : "");
-                    }
-                    excess += sumSize;
-                }
-            }
-
-            if (top <= 0) {
-                pw.printf(" %13s %13s %13s   %s%n", "", "", "", ".........");
-            }
-            pw.printf(" %13s %13d %13s   %s%n", "", excess, "", "<total>");
+            pw.println("Duplicate Strings:");
+            pw.println("  DUPS: Number of duplicated String instances");
+            pw.println("  SIZE (V): Total size taken by duplicated String.value-s, amenable to GC dedup");
+            pw.println("  SIZE (S+V): Total size taken by duplicated String, along with String objects");
             pw.println();
 
-            pw.close();
-            return sw.toString();
-        }
-
-        public String computeDuplicateStrings(Layouter layouter) {
-
-            Map<Integer, Long> lenToSize = new HashMap<>();
-            for (StringContents ba : contents.keys()) {
-                ClassData cd = new ClassData(ba.componentType + "[]", ba.componentType, ba.length);
-                lenToSize.put(ba.length, layouter.layout(cd).instanceSize());
-            }
-
-            List<StringContents> sorted = new ArrayList<>(contents.keys());
-            sorted.sort((c1, c2) -> Long.compare(
-                    (contents.count(c2) - 1) * lenToSize.get(c2.length),
-                    (contents.count(c1) - 1) * lenToSize.get(c1.length))
-            );
+            pw.printf(" %15s %15s %15s   %s%n", "DUPS", "SIZE (V)", "SIZE (S+V)", "VALUE");
+            pw.println("------------------------------------------------------------------------------------------------");
 
             long top = 30;
-            long excess = 0;
+            long excessC = 0;
+            long excessV = 0;
+            long excessSV = 0;
 
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-
-            pw.println("String instances potential duplicates:");
-
-            pw.printf(" %13s %13s %13s   %s%n", "DUPS", "SUM SIZE", "LENGTH", "VALUE");
-            pw.println("------------------------------------------------------------------------------------------------");
+            long topC = 0;
+            long topV = 0;
+            long topSV = 0;
 
             for (StringContents sc : sorted) {
                 long count = contents.count(sc) - 1;
-                long intSize = lenToSize.get(sc.length);
+                long sizeV = lenToSize.get(sc.length);
+                long sizeSV = sizeV + stringSize;
 
-                long sumSize = count * intSize;
-                if (top-- > 0) {
-                     pw.printf(" %13d %13d %13d   %s%s%n", count, sumSize, sc.length, sc.value(), (sc.length > 32) ? "..." : "");
+                if (count > 0) {
+                    long sumV = count * sizeV;
+                    long sumSV = count * sizeSV;
+                    if (top-- > 0) {
+                        pw.printf(" %,15d %,15d %,15d   %s%s%n",
+                                count, sumV, sumSV,
+                                sc.value(),
+                                (sc.length > 32) ? "... (" + sc.length + " chars)" : "");
+                        topC += count;
+                        topV += sumV;
+                        topSV += sumSV;
+                    }
+                    excessV += sumV;
+                    excessSV += sumSV;
+                    excessC += count;
                 }
-                excess += sumSize;
             }
-
             if (top <= 0) {
-                pw.printf(" %13s %13s %13s   %s%n", "", "", "", ".........");
+                pw.printf(" %,15d %,15d %,15d   %s%n", excessC - topC, excessV - topV, excessSV - topSV, "<other>");
             }
-            pw.printf(" %13s %13d %13s   %s%n", "", excess, "", "<total>");
+            pw.println("------------------------------------------------------------------------------------------------");
+            pw.printf(" %,15d %,15d %,15d   %s%n", excessC, excessV, excessSV, "<total>");
             pw.println();
 
             pw.close();
