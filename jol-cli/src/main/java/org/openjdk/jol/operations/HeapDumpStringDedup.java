@@ -25,11 +25,13 @@
 package org.openjdk.jol.operations;
 
 import org.openjdk.jol.Operation;
+import org.openjdk.jol.datamodel.Model32;
 import org.openjdk.jol.datamodel.ModelVM;
 import org.openjdk.jol.heap.HeapDumpReader;
 import org.openjdk.jol.info.ClassData;
 import org.openjdk.jol.layouters.HotSpotLayouter;
 import org.openjdk.jol.layouters.Layouter;
+import org.openjdk.jol.layouters.RawLayouter;
 import org.openjdk.jol.util.ASCIITable;
 import org.openjdk.jol.util.Multimap;
 import org.openjdk.jol.util.Multiset;
@@ -86,10 +88,20 @@ public class HeapDumpStringDedup implements Operation {
         out.println("Discovering String contents...");
         StringValueVisitor svv = new StringValueVisitor(sv.valuesToStrings());
         HeapDumpReader stringValueReader = new HeapDumpReader(new File(path), out, svv);
-        stringValueReader.parse();
+        Multiset<ClassData> data = stringValueReader.parse();
 
         out.println();
         out.println(layouter);
+        out.println();
+
+        long totalSize = 0;
+        long totalCount = 0;
+        for (ClassData cd : data.keys()) {
+            totalSize += layouter.layout(cd).instanceSize() * data.count(cd);
+            totalCount += data.count(cd);
+        }
+
+        out.printf("Heap dump contains %,d objects, %,d bytes in total.%n", totalCount, totalSize);
         out.println();
 
         svv.computeDuplicates(out, layouter);
@@ -207,8 +219,8 @@ public class HeapDumpStringDedup implements Operation {
             ASCIITable table = new ASCIITable(
                             "=== Duplicate Strings\n" +
                             "  DUPS: Number of duplicated String instances\n" +
-                            "  SIZE (V): Total size taken by duplicated String.value-s, amenable to GC dedup\n" +
-                            "  SIZE (S+V): Total size taken by duplicated String, along with String objects",
+                            "  SIZE (V): Savings due to String.value dedup (automatic by GC)\n" +
+                            "  SIZE (S+V): Savings due to entire String dedup (manual)",
                     "DUPS", "SIZE (V)", "SIZE (S+V)", "VALUE");
 
             for (StringContents sc : contents.keys()) {
