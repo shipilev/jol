@@ -121,7 +121,7 @@ public class HeapDumpBoxes implements Operation {
 
         out.println("Heap Dump: " + path);
 
-        MultiplexingVisitor mv = new MultiplexingVisitor();
+        HeapDumpReader.MultiplexingVisitor mv = new HeapDumpReader.MultiplexingVisitor();
 
         Map<Class<?>, BoxVisitor> visitors = new HashMap<>();
         for (Class<?> cl : PRIMITIVE_CLASSES) {
@@ -162,35 +162,7 @@ public class HeapDumpBoxes implements Operation {
         out.println(swManual);
     }
 
-    public static class MultiplexingVisitor implements HeapDumpReader.Visitor {
-        private final List<HeapDumpReader.Visitor> visitors = new ArrayList<>();
-        public void add(HeapDumpReader.Visitor v) {
-            visitors.add(v);
-        }
-
-        @Override
-        public void visitInstance(long id, long klassID, byte[] bytes, String name) {
-            for (HeapDumpReader.Visitor v : visitors) {
-                v.visitInstance(id, klassID, bytes, name);
-            }
-        }
-
-        @Override
-        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
-            for (HeapDumpReader.Visitor v : visitors) {
-                v.visitClass(id, name, oopIdx, oopSize);
-            }
-        }
-
-        @Override
-        public void visitArray(long id, String componentType, int count, byte[] bytes) {
-            for (HeapDumpReader.Visitor v : visitors) {
-                v.visitArray(id, componentType, count, bytes);
-            }
-        }
-    }
-
-    public class BoxVisitor implements HeapDumpReader.Visitor {
+    public class BoxVisitor extends HeapDumpReader.Visitor {
         private final Multiset<Number> values = new Multiset<>();
         private final String clName;
         private final Class<?> cl;
@@ -228,16 +200,6 @@ public class HeapDumpBoxes implements Operation {
                         throw new IllegalStateException("Unknown class: " + clName);
                 }
             }
-        }
-
-        @Override
-        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
-            // Do nothing
-        }
-
-        @Override
-        public void visitArray(long id, String componentType, int count, byte[] bytes) {
-            // Do nothing
         }
 
         public void printOut(PrintWriter verboseOut, PrintWriter autoboxOut, PrintWriter manualOut) {

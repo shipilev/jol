@@ -72,7 +72,7 @@ public class HeapDumpDuplicates implements Operation {
 
         out.println("Heap Dump: " + path);
 
-        MultiplexingVisitor mv = new MultiplexingVisitor();
+        HeapDumpReader.MultiplexingVisitor mv = new HeapDumpReader.MultiplexingVisitor();
 
         InstanceVisitor iv = new InstanceVisitor();
         mv.add(iv);
@@ -99,33 +99,6 @@ public class HeapDumpDuplicates implements Operation {
         }
     }
 
-    public static class MultiplexingVisitor implements HeapDumpReader.Visitor {
-        private final List<HeapDumpReader.Visitor> visitors = new ArrayList<>();
-        public void add(HeapDumpReader.Visitor v) {
-            visitors.add(v);
-        }
-
-        @Override
-        public void visitInstance(long id, long klassID, byte[] bytes, String name) {
-            for (HeapDumpReader.Visitor v : visitors) {
-                v.visitInstance(id, klassID, bytes, name);
-            }
-        }
-
-        @Override
-        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
-            for (HeapDumpReader.Visitor v : visitors) {
-                v.visitClass(id, name, oopIdx, oopSize);
-            }
-        }
-
-        @Override
-        public void visitArray(long id, String componentType, int count, byte[] bytes) {
-            for (HeapDumpReader.Visitor v : visitors) {
-                v.visitArray(id, componentType, count, bytes);
-            }
-        }
-    }
 
     public static class InstanceContents {
         private final long contents;
@@ -338,16 +311,16 @@ public class HeapDumpDuplicates implements Operation {
         return true;
     }
 
-    public static class InstanceVisitor implements HeapDumpReader.Visitor {
-        private final Map<ClassData, Multiset<InstanceContents>> contents = new HashMap<>();
+    public static class InstanceVisitor extends HeapDumpReader.Visitor {
+        private final Map<String, Multiset<InstanceContents>> contents = new HashMap<>();
+        private final Map<String, ClassData> classDatas = new HashMap<>();
 
         @Override
         public void visitInstance(long id, long klassID, byte[] bytes, String name) {
             Multiset<InstanceContents> conts = contents.get(name);
             if (conts == null) {
                 conts = new Multiset<>();
-                // FIXME:
-//                contents.put(name, conts);
+                contents.put(name, conts);
             } else {
                 conts.pruneForSize(1_000_000);
             }
@@ -355,19 +328,14 @@ public class HeapDumpDuplicates implements Operation {
         }
 
         @Override
-        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
-            // Do nothing
-        }
-
-        @Override
-        public void visitArray(long id, String componentType, int count, byte[] bytes) {
-            // Do nothing
+        public void visitClassData(String name, ClassData cd) {
+            classDatas.put(name, cd);
         }
 
         public Map<String, Long> compute(Layouter layouter) {
             Map<String, Long> excesses = new HashMap<>();
-            for (ClassData cd : contents.keySet()) {
-                Multiset<InstanceContents> ics = contents.get(cd);
+            for (String name : contents.keySet()) {
+                Multiset<InstanceContents> ics = contents.get(name);
 
                 boolean hasExcess = false;
                 for (InstanceContents ba : ics.keys()) {
@@ -382,6 +350,11 @@ public class HeapDumpDuplicates implements Operation {
                     continue;
                 }
 
+                ClassData cd = classDatas.get(name);
+                if (cd == null) {
+                    throw new IllegalStateException("Internal error: no class data for " + name);
+                }
+
                 long intSize = layouter.layout(cd).instanceSize();
 
                 List<InstanceContents> sorted = new ArrayList<>(ics.keys());
@@ -390,49 +363,53 @@ public class HeapDumpDuplicates implements Operation {
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
                 pw.println(cd.name() + " potential duplicates:");
+                pw.println("  DUPS: Number of instances with same data");
+                pw.println("  SIZE: Total size taken by duplicate instances");
+                pw.println();
 
-                pw.printf(" %13s %13s   %s%n", "DUPS", "SUM SIZE", "VALUE");
+                pw.printf(" %15s %15s   %s%n", "DUPS", "SUM SIZE", "VALUE");
                 pw.println("------------------------------------------------------------------------------------------------");
 
                 int top = 30;
-                long excess = 0;
+
+                long excessC = 0;
+                long excessV = 0;
+
+                long topC = 0;
+                long topV = 0;
+
                 for (InstanceContents ba : sorted) {
-                    long count = ics.count(ba);
-                    if (count > 1) {
-                        long size = (count - 1) * intSize;
-                        excess += size;
+                    long count = ics.count(ba) - 1;
+
+                    if (count > 0) {
+                        long sumV = count * intSize;
                         if (top-- > 0) {
-                            pw.printf(" %13d %13d   %s%n", count - 1, size, ba.value());
+                            pw.printf(" %,15d %,15d   %s%n", count, sumV, ba.value());
+                            topC += count;
+                            topV += sumV;
                         }
+                        excessC += count;
+                        excessV += sumV;
                     }
                 }
 
                 if (top <= 0) {
-                    pw.printf(" %13s %13s   %s%n", "", "", ".........");
+                    pw.printf(" %,15d %,15d   %s%n", excessC - topC, excessV - topV, "<other>");
                 }
-                pw.printf(" %13s %13d   %s%n", "", excess, "<total>");
+                pw.println("------------------------------------------------------------------------------------------------");
+                pw.printf(" %,15d %,15d   %s%n", excessC, excessV, "<total>");
                 pw.println();
 
                 pw.close();
 
-                excesses.put(sw.toString(), excess);
+                excesses.put(sw.toString(), excessV);
             }
             return excesses;
         }
     }
 
-    public static class ArrayContentsVisitor implements HeapDumpReader.Visitor {
+    public static class ArrayContentsVisitor extends HeapDumpReader.Visitor {
         private final Map<String, Multiset<HashedArrayContents>> arrayContents = new HashMap<>();
-
-        @Override
-        public void visitInstance(long id, long klassID, byte[] bytes, String name) {
-            // Do nothing
-        }
-
-        @Override
-        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
-            // Do nothing
-        }
 
         @Override
         public void visitArray(long id, String componentType, int count, byte[] bytes) {
@@ -477,38 +454,50 @@ public class HeapDumpDuplicates implements Operation {
                 );
 
                 long top = 30;
-                long excess = 0;
+
+                long excessC = 0;
+                long excessV = 0;
+
+                long topC = 0;
+                long topV = 0;
 
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
 
                 pw.println(componentType + "[] potential duplicates:");
+                pw.println("  DUPS: Number of instances with same data");
+                pw.println("  SIZE: Total size taken by duplicate instances");
+                pw.println();
 
-                pw.printf(" %13s %13s   %s%n", "DUPS", "SUM SIZE", "VALUE");
+                pw.printf(" %15s %15s   %s%n", "DUPS", "SIZE", "VALUE");
                 pw.println("------------------------------------------------------------------------------------------------");
 
                 for (HashedArrayContents ba : sorted) {
-                    long count = ics.count(ba);
+                    long count = ics.count(ba) - 1;
                     long intSize = lenToSize.get(ba.length);
 
                     if (count > 1) {
-                        long sumSize = (count - 1) * intSize;
+                        long sumV = count * intSize;
                         if (top-- > 0) {
-                            pw.printf(" %13d %13d   %s[%d] %s%n", count, sumSize, componentType, ba.length, ba.value());
+                            pw.printf(" %,15d %,15d   %s[%d] %s%n", count, sumV, componentType, ba.length, ba.value());
+                            topC += count;
+                            topV += sumV;
                         }
-                        excess += sumSize;
+                        excessC += count;
+                        excessV += sumV;
                     }
                 }
 
                 if (top <= 0) {
-                    pw.printf(" %13s %13s   %s%n", "", "", ".........");
+                    pw.printf(" %,15d %,15d   %s%n", excessC - topC, excessV - topV, "<other>");
                 }
-                pw.printf(" %13s %13d   %s%n", "", excess, "<total>");
+                pw.println("------------------------------------------------------------------------------------------------");
+                pw.printf(" %,15d %,15d   %s%n", excessC, excessV, "<total>");
                 pw.println();
 
                 pw.close();
 
-                excesses.put(sw.toString(), excess);
+                excesses.put(sw.toString(), excessV);
             }
             return excesses;
         }

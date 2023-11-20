@@ -101,14 +101,12 @@ public class HeapDumpStringDedup implements Operation {
         private final String componentType;
         private final byte[] contents;
         private final long hash;
-        private final int refStrings;
 
-        public StringContents(int length, String componentType, byte[] contents, int refStrings) {
+        public StringContents(int length, String componentType, byte[] contents) {
             this.length = length;
             this.componentType = componentType;
             this.contents = Arrays.copyOf(contents, Math.min(contents.length, 32));
             this.hash = byteArrayHashCode(contents);
-            this.refStrings = refStrings;
         }
 
         @Override
@@ -144,7 +142,7 @@ public class HeapDumpStringDedup implements Operation {
         return result;
     }
 
-    public static class StringVisitor implements HeapDumpReader.Visitor {
+    public static class StringVisitor extends HeapDumpReader.Visitor {
         private final Multimap<Long, Long> valuesToStrings = new Multimap<>();
 
         private long stringID;
@@ -183,17 +181,12 @@ public class HeapDumpStringDedup implements Operation {
             }
         }
 
-        @Override
-        public void visitArray(long id, String componentType, int count, byte[] bytes) {
-            // Do nothing
-        }
-
         public Multimap<Long, Long> valuesToStrings() {
             return valuesToStrings;
         }
     }
 
-    public static class StringValueVisitor implements HeapDumpReader.Visitor {
+    public static class StringValueVisitor extends HeapDumpReader.Visitor {
         private final Multimap<Long, Long> valuesToStrings;
         private final Multiset<StringContents> contents = new Multiset<>();
 
@@ -202,19 +195,9 @@ public class HeapDumpStringDedup implements Operation {
         }
 
         @Override
-        public void visitInstance(long id, long klassID, byte[] bytes, String name) {
-            // Do nothing
-        }
-
-        @Override
-        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
-            // Do nothing
-        }
-
-        @Override
         public void visitArray(long id, String componentType, int count, byte[] bytes) {
             if (valuesToStrings.contains(id)) {
-                contents.add(new StringContents(count, componentType, bytes, valuesToStrings.get(id).size()));
+                contents.add(new StringContents(count, componentType, bytes));
             }
         }
 

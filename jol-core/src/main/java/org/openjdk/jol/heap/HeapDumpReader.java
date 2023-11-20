@@ -203,7 +203,8 @@ public class HeapDumpReader {
         Map<Long, ClassData> classDatas = new HashMap<>();
 
         for (Long klassId : classFields.keys()) {
-            ClassData cd = new ClassData(classNames.get(klassId));
+            String name = classNames.get(klassId);
+            ClassData cd = new ClassData(name);
 
             Long id = klassId;
             while (id != null) {
@@ -214,6 +215,9 @@ public class HeapDumpReader {
                 id = classSupers.get(id);
             }
             classDatas.put(klassId, cd);
+            if (visitor != null) {
+                visitor.visitClassData(name, cd);
+            }
         }
 
         // Fix up superclasses for HotspotLayouter to work well.
@@ -600,11 +604,59 @@ public class HeapDumpReader {
         return String.format("%s at offset 0x%x in %s (%s)", message, readBytes, file, header);
     }
 
-    public interface Visitor {
-        void visitInstance(long id, long klassID, byte[] bytes, String name);
-        void visitClass(long id, String name, List<Integer> oopIdx, int oopSize);
-        void visitArray(long id, String componentType, int count, byte[] bytes);
+    public static class Visitor {
+        public void visitInstance(long id, long klassID, byte[] bytes, String name) {
+            // Do nothing.
+        }
+
+        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
+            // Do nothing.
+        }
+
+        public void visitArray(long id, String componentType, int count, byte[] bytes) {
+            // Do nothing.
+        }
+
+        public void visitClassData(String name, ClassData cd) {
+            // Do nothing.
+        }
     }
+
+    public static class MultiplexingVisitor extends Visitor {
+        private final List<Visitor> visitors = new ArrayList<>();
+        public void add(Visitor v) {
+            visitors.add(v);
+        }
+
+        @Override
+        public void visitInstance(long id, long klassID, byte[] bytes, String name) {
+            for (Visitor v : visitors) {
+                v.visitInstance(id, klassID, bytes, name);
+            }
+        }
+
+        @Override
+        public void visitClass(long id, String name, List<Integer> oopIdx, int oopSize) {
+            for (Visitor v : visitors) {
+                v.visitClass(id, name, oopIdx, oopSize);
+            }
+        }
+
+        @Override
+        public void visitArray(long id, String componentType, int count, byte[] bytes) {
+            for (HeapDumpReader.Visitor v : visitors) {
+                v.visitArray(id, componentType, count, bytes);
+            }
+        }
+
+        @Override
+        public void visitClassData(String name, ClassData cd) {
+            for (HeapDumpReader.Visitor v : visitors) {
+                v.visitClassData(name, cd);
+            }
+        }
+    }
+
 
     static class UnsyncBufferedInputStream extends BufferedInputStream {
         public UnsyncBufferedInputStream(InputStream in, int bufSize) {
