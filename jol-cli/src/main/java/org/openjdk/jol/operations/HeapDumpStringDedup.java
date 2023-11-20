@@ -36,8 +36,6 @@ import org.openjdk.jol.util.Multiset;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -207,7 +205,7 @@ public class HeapDumpStringDedup implements Operation {
             long stringSize = layouter.layout(ClassData.parseClass(String.class)).instanceSize();
 
             ASCIITable table = new ASCIITable(30,
-                            "Duplicate Strings:\n" +
+                            "=== Duplicate Strings\n" +
                             "  DUPS: Number of duplicated String instances\n" +
                             "  SIZE (V): Total size taken by duplicated String.value-s, amenable to GC dedup\n" +
                             "  SIZE (S+V): Total size taken by duplicated String, along with String objects",
@@ -227,17 +225,9 @@ public class HeapDumpStringDedup implements Operation {
                 }
             }
 
-            // Sort by total size
-            table.sortReversed(0);
-            table.print(ps);
-
-            // Sort by total size
-            table.sortReversed(1);
-            table.print(ps);
-
-            // Sort by total size
-            table.sortReversed(2);
-            table.print(ps);
+            table.printRevSorted(ps, 0);
+            table.printRevSorted(ps, 1);
+            table.printRevSorted(ps, 2);
         }
     }
 

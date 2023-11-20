@@ -61,22 +61,19 @@ public class ASCIITable {
         lines.add(new Line(value, numbers));
     }
 
-    public void sort(int column) {
-        lines.sort(Comparator.comparing(l -> l.numbers[column]));
-    }
-
-    public void sortReversed(int column) {
-        lines.sort(Comparator.comparing((Line l) -> l.numbers[column]).reversed());
-    }
-
-    public void print(PrintStream ps) {
+    public void printRevSorted(PrintStream ps, int column) {
         PrintWriter pw = new PrintWriter(ps);
-        print(pw);
+        printRevSorted(pw, column);
         pw.flush();
     }
 
-    public void print(PrintWriter pw) {
+    public void printRevSorted(PrintWriter pw, int sortColumn) {
+        lines.sort(Comparator.comparing((Line l) -> l.numbers[sortColumn]).reversed());
+
         pw.println(header);
+        pw.println();
+
+        pw.println("Table is sorted by \"" + columns[sortColumn] + "\"");
         pw.println();
 
         for (int c = 0; c < numberColumns; c++) {
