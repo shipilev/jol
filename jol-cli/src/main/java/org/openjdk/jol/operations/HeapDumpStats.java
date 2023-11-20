@@ -72,8 +72,6 @@ public class HeapDumpStats implements Operation {
 
         Layouter layouter = new HotSpotLayouter(new ModelVM(), getVMVersion());
 
-        final int printFirst = Integer.getInteger("printFirst", 30);
-
         out.println("Heap Dump: " + path);
 
         HeapDumpReader reader = new HeapDumpReader(new File(path), out, null);
@@ -82,11 +80,8 @@ public class HeapDumpStats implements Operation {
         out.println();
         out.println(layouter);
         out.println();
-        out.println("Printing first " + printFirst + " lines. Use -DprintFirst=# to override.");
-        out.println();
 
-        ASCIITable table = new ASCIITable(printFirst,
-                "=== Class Histogram",
+        ASCIITable table = new ASCIITable("=== Class Histogram",
                 "INSTANCES", "SIZE", "SUM SIZE", "CLASS");
 
         for (ClassData cd : data.keys()) {

@@ -204,7 +204,7 @@ public class HeapDumpStringDedup implements Operation {
         public void computeDuplicates(PrintStream ps, Layouter layouter) {
             long stringSize = layouter.layout(ClassData.parseClass(String.class)).instanceSize();
 
-            ASCIITable table = new ASCIITable(30,
+            ASCIITable table = new ASCIITable(
                             "=== Duplicate Strings\n" +
                             "  DUPS: Number of duplicated String instances\n" +
                             "  SIZE (V): Total size taken by duplicated String.value-s, amenable to GC dedup\n" +

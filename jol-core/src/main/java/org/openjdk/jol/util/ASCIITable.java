@@ -30,17 +30,17 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import static java.lang.System.out;
+
 public class ASCIITable {
 
-    private final int top;
     private final String header;
     private final int numberColumns;
     private final String[] columns;
 
     private final List<Line> lines;
 
-    public ASCIITable(int top, String header, String... columns) {
-        this.top = top;
+    public ASCIITable(String header, String... columns) {
         this.header = header;
         this.columns = columns;
         this.numberColumns = columns.length - 1;
@@ -73,7 +73,9 @@ public class ASCIITable {
         pw.println(header);
         pw.println();
 
-        pw.println("Table is sorted by \"" + columns[sortColumn] + "\"");
+        final int printFirst = Integer.getInteger("printFirst", 30);
+        pw.println("Table is sorted by \"" + columns[sortColumn] + "\".");
+        pw.println("Printing first " + printFirst + " lines. Use -DprintFirst=# to override.");
         pw.println();
 
         for (int c = 0; c < numberColumns; c++) {
@@ -89,7 +91,7 @@ public class ASCIITable {
         int current = 0;
 
         for (Line l : lines) {
-            if (current < top) {
+            if (current < printFirst) {
                 for (int c = 0; c < numberColumns; c++) {
                     pw.printf(" %,15d", l.numbers[c]);
                     tops[c] += l.numbers[c];
@@ -104,7 +106,7 @@ public class ASCIITable {
             current++;
         }
 
-        if (current > top) {
+        if (current > printFirst) {
             for (int c = 0; c < numberColumns; c++) {
                 pw.printf(" %15s", "...");
             }
