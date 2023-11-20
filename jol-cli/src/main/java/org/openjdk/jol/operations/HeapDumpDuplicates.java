@@ -30,6 +30,7 @@ import org.openjdk.jol.heap.HeapDumpReader;
 import org.openjdk.jol.info.ClassData;
 import org.openjdk.jol.layouters.HotSpotLayouter;
 import org.openjdk.jol.layouters.Layouter;
+import org.openjdk.jol.util.ASCIITable;
 import org.openjdk.jol.util.Multiset;
 
 import java.io.*;
@@ -41,7 +42,6 @@ import static java.lang.System.out;
  * @author Aleksey Shipilev
  */
 public class HeapDumpDuplicates implements Operation {
-
 
     @Override
     public String label() {
@@ -220,14 +220,17 @@ public class HeapDumpDuplicates implements Operation {
         public String value() {
             if (contentsIsHash) {
                 if (contentsIsZero) {
-                    return "{ 0, ..., 0 }";
+                    return componentType + "[" + length + "] { 0, ..., 0 }";
                 } else {
-                    return "(hash: " + Long.toHexString(contents) + ")";
+                    return componentType + "[" + length + "] (hash: " + Long.toHexString(contents) + ")";
                 }
             }
 
             StringBuilder sb = new StringBuilder();
-            sb.append("{ ");
+            sb.append(componentType);
+            sb.append("[");
+            sb.append(length);
+            sb.append("] {");
             switch (unitSize()) {
                 case 1:
                     switch (length) {
@@ -357,51 +360,25 @@ public class HeapDumpDuplicates implements Operation {
 
                 long intSize = layouter.layout(cd).instanceSize();
 
-                List<InstanceContents> sorted = new ArrayList<>(ics.keys());
-                sorted.sort((c1, c2) -> Long.compare(ics.count(c2), ics.count(c1)));
+                ASCIITable table = new ASCIITable("=== " + cd.name() + " Potential Duplicates\n" +
+                        "  DUPS: Number of instances with same data\n" +
+                        "  SIZE: Total size taken by duplicate instances",
+                        "DUPS", "SIZE", "VALUE");
 
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                pw.println(cd.name() + " potential duplicates:");
-                pw.println("  DUPS: Number of instances with same data");
-                pw.println("  SIZE: Total size taken by duplicate instances");
-                pw.println();
-
-                pw.printf(" %15s %15s   %s%n", "DUPS", "SUM SIZE", "VALUE");
-                pw.println("------------------------------------------------------------------------------------------------");
-
-                int top = 30;
-
-                long excessC = 0;
                 long excessV = 0;
 
-                long topC = 0;
-                long topV = 0;
-
-                for (InstanceContents ba : sorted) {
-                    long count = ics.count(ba) - 1;
-
+                for (InstanceContents ic : ics.keys()) {
+                    long count = ics.count(ic) - 1;
                     if (count > 0) {
                         long sumV = count * intSize;
-                        if (top-- > 0) {
-                            pw.printf(" %,15d %,15d   %s%n", count, sumV, ba.value());
-                            topC += count;
-                            topV += sumV;
-                        }
-                        excessC += count;
+                        table.addLine(ic.value(), count, sumV);
                         excessV += sumV;
                     }
                 }
 
-                if (top <= 0) {
-                    pw.printf(" %,15d %,15d   %s%n", excessC - topC, excessV - topV, "<other>");
-                }
-                pw.println("------------------------------------------------------------------------------------------------");
-                pw.printf(" %,15d %,15d   %s%n", excessC, excessV, "<total>");
-                pw.println();
-
-                pw.close();
-
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                table.printRevSorted(pw, 1);
                 excesses.put(sw.toString(), excessV);
             }
             return excesses;
@@ -426,11 +403,11 @@ public class HeapDumpDuplicates implements Operation {
         public Map<String, Long> compute(Layouter layouter) {
             Map<String, Long> excesses = new HashMap<>();
             for (String componentType : arrayContents.keySet()) {
-                Multiset<HashedArrayContents> ics = arrayContents.get(componentType);
+                Multiset<HashedArrayContents> hacs = arrayContents.get(componentType);
 
                 boolean hasExcess = false;
-                for (HashedArrayContents ba : ics.keys()) {
-                    long count = ics.count(ba);
+                for (HashedArrayContents ba : hacs.keys()) {
+                    long count = hacs.count(ba);
                     if (count > 1) {
                         hasExcess = true;
                         break;
@@ -441,62 +418,26 @@ public class HeapDumpDuplicates implements Operation {
                     continue;
                 }
 
-                Map<Integer, Long> lenToSize = new HashMap<>();
-                for (HashedArrayContents ba : ics.keys()) {
-                    ClassData cd = new ClassData(componentType + "[]", componentType, ba.length);
-                    lenToSize.put(ba.length, layouter.layout(cd).instanceSize());
-                }
+                ASCIITable table = new ASCIITable("=== " + componentType + "[] Potential Duplicates\n" +
+                        "  DUPS: Number of instances with same data\n" +
+                        "  SIZE: Total size taken by duplicate instances",
+                        "DUPS", "SIZE", "VALUE");
 
-                List<HashedArrayContents> sorted = new ArrayList<>(ics.keys());
-                sorted.sort((c1, c2) -> Long.compare(
-                        (ics.count(c2) - 1) * lenToSize.get(c2.length),
-                        (ics.count(c1) - 1) * lenToSize.get(c1.length))
-                );
-
-                long top = 30;
-
-                long excessC = 0;
                 long excessV = 0;
-
-                long topC = 0;
-                long topV = 0;
-
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-
-                pw.println(componentType + "[] potential duplicates:");
-                pw.println("  DUPS: Number of instances with same data");
-                pw.println("  SIZE: Total size taken by duplicate instances");
-                pw.println();
-
-                pw.printf(" %15s %15s   %s%n", "DUPS", "SIZE", "VALUE");
-                pw.println("------------------------------------------------------------------------------------------------");
-
-                for (HashedArrayContents ba : sorted) {
-                    long count = ics.count(ba) - 1;
-                    long intSize = lenToSize.get(ba.length);
-
-                    if (count > 1) {
+                for (HashedArrayContents hac : hacs.keys()) {
+                    long count = hacs.count(hac) - 1;
+                    if (count > 0) {
+                        ClassData cd = new ClassData(componentType + "[]", componentType, hac.length);
+                        long intSize = layouter.layout(cd).instanceSize();
                         long sumV = count * intSize;
-                        if (top-- > 0) {
-                            pw.printf(" %,15d %,15d   %s[%d] %s%n", count, sumV, componentType, ba.length, ba.value());
-                            topC += count;
-                            topV += sumV;
-                        }
-                        excessC += count;
+                        table.addLine(hac.value(), count, sumV);
                         excessV += sumV;
                     }
                 }
 
-                if (top <= 0) {
-                    pw.printf(" %,15d %,15d   %s%n", excessC - topC, excessV - topV, "<other>");
-                }
-                pw.println("------------------------------------------------------------------------------------------------");
-                pw.printf(" %,15d %,15d   %s%n", excessC, excessV, "<total>");
-                pw.println();
-
-                pw.close();
-
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                table.printRevSorted(pw, 1);
                 excesses.put(sw.toString(), excessV);
             }
             return excesses;
