@@ -87,18 +87,21 @@ public class HeapDumpDuplicates implements Operation {
         out.println(layouter);
         out.println();
 
-        Map<String, Long> excesses = new HashMap<>();
-        excesses.putAll(iv.compute(layouter));
-        excesses.putAll(av.compute(layouter));
+        List<ExcessRow> excesses = new ArrayList<>();
+        excesses.addAll(iv.compute(layouter));
+        excesses.addAll(av.compute(layouter));
+        excesses.sort((c1, c2) -> Long.compare(c2.excessV, c1.excessV));
 
-        List<String> sorted = new ArrayList<>(excesses.keySet());
-        sorted.sort((c1, c2) -> Long.compare(excesses.get(c2), excesses.get(c1)));
+        ASCIITable table = new ASCIITable("=== Potential Duplication Candidates", "DUPS", "SUM SIZE", "CLASS");
+        for (ExcessRow s : excesses) {
+            table.addLine(s.name, s.excessC, s.excessV);
+        }
+        table.printRevSorted(out, 1);
 
-        for (String s : sorted) {
-            out.println(s);
+        for (ExcessRow s : excesses) {
+            out.println(s.fullTable);
         }
     }
-
 
     public static class InstanceContents {
         private final long contents;
@@ -230,7 +233,7 @@ public class HeapDumpDuplicates implements Operation {
             sb.append(componentType);
             sb.append("[");
             sb.append(length);
-            sb.append("] {");
+            sb.append("] { ");
             switch (unitSize()) {
                 case 1:
                     switch (length) {
@@ -335,8 +338,8 @@ public class HeapDumpDuplicates implements Operation {
             classDatas.put(name, cd);
         }
 
-        public Map<String, Long> compute(Layouter layouter) {
-            Map<String, Long> excesses = new HashMap<>();
+        public List<ExcessRow> compute(Layouter layouter) {
+            List<ExcessRow> excesses = new ArrayList<>();
             for (String name : contents.keySet()) {
                 Multiset<InstanceContents> ics = contents.get(name);
 
@@ -366,6 +369,7 @@ public class HeapDumpDuplicates implements Operation {
                         "DUPS", "SIZE", "VALUE");
 
                 long excessV = 0;
+                long excessC = 0;
 
                 for (InstanceContents ic : ics.keys()) {
                     long count = ics.count(ic) - 1;
@@ -373,13 +377,14 @@ public class HeapDumpDuplicates implements Operation {
                         long sumV = count * intSize;
                         table.addLine(ic.value(), count, sumV);
                         excessV += sumV;
+                        excessC += count;
                     }
                 }
 
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
                 table.printRevSorted(pw, 1);
-                excesses.put(sw.toString(), excessV);
+                excesses.add(new ExcessRow(excessC, excessV, cd.name(), sw.toString()));
             }
             return excesses;
         }
@@ -400,8 +405,8 @@ public class HeapDumpDuplicates implements Operation {
             conts.add(new HashedArrayContents(count, componentType, bytes));
         }
 
-        public Map<String, Long> compute(Layouter layouter) {
-            Map<String, Long> excesses = new HashMap<>();
+        public List<ExcessRow> compute(Layouter layouter) {
+            List<ExcessRow> excesses = new ArrayList<>();
             for (String componentType : arrayContents.keySet()) {
                 Multiset<HashedArrayContents> hacs = arrayContents.get(componentType);
 
@@ -424,6 +429,7 @@ public class HeapDumpDuplicates implements Operation {
                         "DUPS", "SIZE", "VALUE");
 
                 long excessV = 0;
+                long excessC = 0;
                 for (HashedArrayContents hac : hacs.keys()) {
                     long count = hacs.count(hac) - 1;
                     if (count > 0) {
@@ -432,17 +438,32 @@ public class HeapDumpDuplicates implements Operation {
                         long sumV = count * intSize;
                         table.addLine(hac.value(), count, sumV);
                         excessV += sumV;
+                        excessC += count;
                     }
                 }
 
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
                 table.printRevSorted(pw, 1);
-                excesses.put(sw.toString(), excessV);
+                excesses.add(new ExcessRow(excessC, excessV, componentType + "[]", sw.toString()));
             }
             return excesses;
         }
 
+    }
+
+    private static class ExcessRow {
+        final long excessC;
+        final long excessV;
+        final String name;
+        final String fullTable;
+
+        public ExcessRow(long excessC, long excessV, String name, String fullTable) {
+            this.excessC = excessC;
+            this.excessV = excessV;
+            this.name = name;
+            this.fullTable = fullTable;
+        }
     }
 
 }

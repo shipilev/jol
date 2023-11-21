@@ -170,6 +170,153 @@ This gets the object footprint estimate, similar to the object externals, but ta
     ------------------------------------------------------------------------------------------------
                1.841           3.454          67.712    <total>
 
+#### "heapdump-estimates"
+
+    $ java
+    Heap Dump: sample-clion.hprof.gz
+
+    'Overhead' comes from additional metadata, representation and alignment losses.
+    'JVM mode' is the relative footprint change compared to the best JVM mode in this JDK.
+    'Upgrade From' is the relative footprint change against the same mode in other JDKs.
+
+    Read progress: 269M... 538M... 808M... 1077M... 1346M... 1616M... DONE
+
+    === Overall Statistics
+
+       17426K,     Total objects
+         682M,     Total data size
+        39,15,     Average data per object
+
+    === Stock 32-bit OpenJDK
+
+    Footprint,   Overhead,     Description
+         897M,     +31,6%,     32-bit (<4 GB heap)
+
+    === Stock 64-bit OpenJDK (JDK < 15)
+
+    Footprint,   Overhead,   JVM Mode,     Description
+        1526M,    +123,8%,     +61,9%,     64-bit, no comp refs (>32 GB heap, default align)
+         942M,     +38,2%,         0%,     64-bit, comp refs (<32 GB heap, default align)
+        1026M,     +50,5%,      +8,9%,     64-bit, comp refs with large align (   32..64GB heap,  16-byte align)
+        1133M,     +66,2%,     +20,2%,     64-bit, comp refs with large align (  64..128GB heap,  32-byte align)
+        1499M,    +119,8%,     +59,0%,     64-bit, comp refs with large align ( 128..256GB heap,  64-byte align)
+        2556M,    +274,7%,    +171,1%,     64-bit, comp refs with large align ( 256..512GB heap, 128-byte align)
+        4768M,    +599,1%,    +405,7%,     64-bit, comp refs with large align (512..1024GB heap, 256-byte align)
+
+    === Stock 64-bit OpenJDK (JDK >= 15)
+
+                                         Upgrade From:
+    Footprint,   Overhead,   JVM Mode,   JDK < 15,     Description
+        1423M,    +108,6%,     +51,0%,      -6,8%,     64-bit, no comp refs, but comp classes (>32 GB heap, default align)
+         942M,     +38,2%,         0%,        ~0%,     64-bit, comp refs (<32 GB heap, default align)
+        1026M,     +50,4%,      +8,9%,        ~0%,     64-bit, comp refs with large align (   32..64GB heap,  16-byte align)
+        1132M,     +66,0%,     +20,1%,      -0,1%,     64-bit, comp refs with large align (  64..128GB heap,  32-byte align)
+        1498M,    +119,6%,     +59,0%,        ~0%,     64-bit, comp refs with large align ( 128..256GB heap,  64-byte align)
+        2556M,    +274,7%,    +171,2%,        ~0%,     64-bit, comp refs with large align ( 256..512GB heap, 128-byte align)
+        4768M,    +599,1%,    +406,0%,         0%,     64-bit, comp refs with large align (512..1024GB heap, 256-byte align)
+
+    === Experimental 64-bit OpenJDK: Lilliput, 64-bit headers
+
+                                         Upgrade From:
+    Footprint,   Overhead,   JVM Mode,   JDK < 15,  JDK >= 15,     Description
+        1373M,    +101,3%,     +51,9%,     -10,0%,      -3,5%,     64-bit, no comp refs, but comp classes (>32 GB heap, default align)
+         904M,     +32,6%,         0%,      -4,1%,      -4,0%,     64-bit, comp refs (<32 GB heap, default align)
+        1001M,     +46,8%,     +10,7%,      -2,5%,      -2,4%,     64-bit, comp refs with large align (   32..64GB heap,  16-byte align)
+        1116M,     +63,6%,     +23,4%,      -1,5%,      -1,4%,     64-bit, comp refs with large align (  64..128GB heap,  32-byte align)
+        1496M,    +119,3%,     +65,4%,      -0,2%,      -0,1%,     64-bit, comp refs with large align ( 128..256GB heap,  64-byte align)
+        2556M,    +274,7%,    +182,6%,        ~0%,        ~0%,     64-bit, comp refs with large align ( 256..512GB heap, 128-byte align)
+        4768M,    +599,1%,    +427,3%,         0%,         0%,     64-bit, comp refs with large align (512..1024GB heap, 256-byte align)
+
+    === Experimental 64-bit OpenJDK: Lilliput, 32-bit headers
+
+                                         Upgrade From:
+    Footprint,   Overhead,   JVM Mode,   JDK < 15,  JDK >= 15,    Lill-64,      Description
+        1283M,     +88,2%,     +59,8%,     -15,9%,      -9,8%,      -6,5%,      64-bit, no comp refs, but comp classes (>32 GB heap, default align)
+         803M,     +17,7%,         0%,     -14,8%,     -14,8%,     -11,2%,      64-bit, comp refs (<32 GB heap, default align)
+         858M,     +25,9%,      +6,9%,     -16,4%,     -16,3%,     -14,2%,      64-bit, comp refs with large align (   32..64GB heap,  16-byte align)
+         972M,     +42,5%,     +21,0%,     -14,2%,     -14,1%,     -12,9%,      64-bit, comp refs with large align (  64..128GB heap,  32-byte align)
+        1477M,    +116,5%,     +83,9%,      -1,5%,      -1,4%,      -1,3%,      64-bit, comp refs with large align ( 128..256GB heap,  64-byte align)
+        2554M,    +274,5%,    +218,1%,     -46,4%,        ~0%,        ~0%,      64-bit, comp refs with large align ( 256..512GB heap, 128-byte align)
+        4768M,    +599,0%,    +493,8%,        ~0%,        ~0%,        ~0%,      64-bit, comp refs with large align (512..1024GB heap, 256-byte align)
+
+#### "heapdump-stats"
+
+
+
+#### "heapdump-duplicates"
+
+Reads the heap dump and tries to identify the objects that have the same contents. These objects might be de-duplicated,
+if possible. It would print both the summary report, and more verbose report per class. 
+
+    $ java -jar jol-cli.jar heapdump-duplicates sample-clion.hprof.gz
+    Heap Dump: sample-clion.hprof.gz
+    Read progress: 269M... 538M... 808M... 1077M... 1346M... 1616M... DONE
+
+    Hotspot Layout Simulation (JDK 17, Current VM: 12-byte object headers, 4-byte references, 8-byte aligned objects, 8-byte aligned array bases)
+
+    === Potential Duplication Candidates
+
+    Table is sorted by "SUM SIZE".
+    Printing first 30 lines. Use -DprintFirst=# to override.
+
+                DUPS        SUM SIZE    CLASS
+    ------------------------------------------------------------------------------------------------
+             449.993     124.302.944    Object[]
+             656.318      31.629.792    byte[]
+             661.645      26.465.800    com.jetbrains.cidr.lang.symbols.cpp.OCMacroSymbol
+             610.393      19.532.576    java.util.HashMap$Node
+             177.670       6.566.216    int[]
+             273.211       6.557.064    java.util.ArrayList
+              93.361       2.987.552    java.util.concurrent.ConcurrentHashMap$Node
+              59.492       1.903.744    com.jetbrains.cidr.lang.types.OCReferenceTypeSimple
+              39.348       1.573.920    com.jetbrains.cidr.lang.types.OCPointerType
+              62.699       1.504.776    java.lang.String
+              32.250       1.290.000    org.languagetool.rules.patterns.PatternToken
+              50.661       1.215.864    com.intellij.openapi.util.Pair
+               7.536       1.033.872    long[]
+              25.407       1.016.280    com.jetbrains.cidr.lang.types.OCIntType
+              63.268       1.012.288    java.util.concurrent.atomic.AtomicReference
+              29.521         944.672    com.intellij.openapi.vfs.newvfs.impl.VirtualFileImpl
+              56.675         906.800    java.lang.Integer
+              21.845         699.040    com.jetbrains.cidr.lang.symbols.OCSymbolReference$GlobalReference
+              42.183         674.928    java.lang.Object
+              27.481         659.544    com.intellij.util.keyFMap.OneElementFMap
+              19.553         625.696    com.jetbrains.cidr.lang.symbols.ComplexTextRange
+              14.071         562.840    com.intellij.reference.SoftReference
+               7.288         524.736    java.lang.reflect.Field
+              21.370         512.880    com.jetbrains.cidr.lang.symbols.OCQualifiedName
+              12.625         505.000    java.lang.ref.SoftReference
+              10.224         490.752    java.util.HashMap
+               2.362         481.664    boolean[]
+               9.355         449.040    com.jetbrains.cidr.lang.preprocessor.OCMacroForeignLeafType
+              17.707         424.968    com.jetbrains.cidr.lang.symbols.cpp.OCIncludeSymbol$IncludePath
+              10.533         421.320    com.jetbrains.cidr.lang.preprocessor.OCMacroReferenceTokenType
+                 ...             ...    ...
+             307.252       9.288.760    <other>
+    ------------------------------------------------------------------------------------------------
+           3.873.297     246.765.328    <total>
+
+    ...
+
+    === com.jetbrains.cidr.lang.symbols.cpp.OCMacroSymbol Potential Duplicates
+      DUPS: Number of instances with same data
+      SIZE: Total size taken by duplicate instances
+
+    Table is sorted by "SIZE".
+    Printing first 30 lines. Use -DprintFirst=# to override.
+
+                DUPS            SIZE    VALUE
+    ------------------------------------------------------------------------------------------------
+               1.044          41.760    (hash: b3d7653a1b45cdc7)
+               1.044          41.760    (hash: dba02bbacfe63eb7)
+               1.044          41.760    (hash: 31921ef6e494ca97)
+               1.044          41.760    (hash: c2b4fb34818eb9ed)
+               1.044          41.760    (hash: 31f79d3ace1161ca)
+               1.044          41.760    (hash: 13f841d0438614c5)
+               1.044          41.760    (hash: d45cdf077af876ad)
+               1.044          41.760    (hash: 1b27a7c37cafc70e)
+    ...
+
 ## Reporting Bugs
 
 You may find unresolved bugs and feature request in 

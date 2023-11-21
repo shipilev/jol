@@ -31,6 +31,7 @@ import org.openjdk.jol.info.ClassLayout;
 import org.openjdk.jol.info.GraphLayout;
 import org.openjdk.jol.layouters.HotSpotLayouter;
 import org.openjdk.jol.layouters.Layouter;
+import org.openjdk.jol.util.ASCIITable;
 import org.openjdk.jol.util.ClassUtils;
 import org.openjdk.jol.util.Multiset;
 
@@ -203,17 +204,10 @@ public class HeapDumpBoxes implements Operation {
         }
 
         public void printOut(PrintWriter verboseOut, PrintWriter autoboxOut, PrintWriter manualOut) {
-            List<Number> sortedByValue = new ArrayList<>(values.keys());
-            List<Number> sortedByCount = new ArrayList<>(values.keys());
-            sortedByValue.sort(Comparator.comparing(Number::longValue));
-            sortedByCount.sort((c1, c2) -> Long.compare(values.count(c2), values.count(c1)));
-
             long instanceSize = ClassLayout.parseClass(cl).instanceSize();
 
-            verboseOut.println(clName + " boxes:");
-
-            verboseOut.printf(" %13s %13s    %s%n", "DUPS", "SUM BYTES", "VALUE");
-            verboseOut.println("------------------------------------------------------------------------------------------------");
+            ASCIITable table = new ASCIITable("===" + clName + " boxes:",
+                    "DUPS", "SUM BYTES", "VALUE");
 
             List<Integer> limits = new ArrayList<>();
             for (long i = 256; i <= 1024 * 1024 * 1024; i *= 2) {
@@ -223,13 +217,13 @@ public class HeapDumpBoxes implements Operation {
             Multiset<Integer> autoBoxCountWins = new Multiset<>();
             Multiset<Integer> autoBoxSizeWins = new Multiset<>();
 
-            for (Number v : sortedByValue) {
+            for (Number v : values.keys()) {
                 long count = values.count(v) - 1;
 
                 if (count > 0) {
                     long size = count * instanceSize;
 
-                    verboseOut.printf(" %13d %13d    %s%n", count, size, v);
+                    table.addLine(v.toString(), count, size);
 
                     for (int limit : limits) {
                         if (-128 <= v.longValue() && v.longValue() < limit) {
@@ -239,7 +233,8 @@ public class HeapDumpBoxes implements Operation {
                     }
                 }
             }
-            verboseOut.println();
+
+            table.printRevSorted(verboseOut, 1);
 
             if (cl.equals(Integer.class)) {
                 autoboxOut.println(clName + ", savings with manual K[] cache, or non-default AutoBoxCacheMax:");
@@ -258,6 +253,9 @@ public class HeapDumpBoxes implements Operation {
             Multiset<Integer> manualCachePopulation= new Multiset<>();
             Multiset<Integer> manualCacheCountWins = new Multiset<>();
             Multiset<Integer> manualCacheSizeWins = new Multiset<>();
+
+            List<Number> sortedByCount = new ArrayList<>(values.keys());
+            sortedByCount.sort((c1, c2) -> Long.compare(values.count(c2), values.count(c1)));
 
             int n = 0;
             for (Number v : sortedByCount) {
