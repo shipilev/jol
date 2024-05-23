@@ -89,19 +89,17 @@ public class ServiceabilityAgentSupport {
     }
 
     private AgentStyle senseAgentStyle() {
-        List<Throwable> exceptions = new ArrayList<>();
+        SASupportException exception = new SASupportException("Unable to attach even with module exceptions");
         for (AgentStyle style : AgentStyle.values()) {
             try {
                 senseAccess(style);
                 return style;
             } catch (Throwable t1) {
                 // fall-through
-                exceptions.add(t1);
+                exception.addSuppressed(t1);
             }
         }
-        // TODO: Use addSuppressed once we are buildable with JDK 7
-        throw new SASupportException("Unable to attach even with module exceptions: " + exceptions,
-                exceptions.get(exceptions.size()-1));
+        throw exception;
     }
 
     private boolean needSudo(AgentStyle style) {
@@ -109,17 +107,19 @@ public class ServiceabilityAgentSupport {
             callAgent(null, false, style);
             return false;
         } catch (Throwable t1) {
-            if (isSudoValidOS() && Boolean.getBoolean(TRY_WITH_SUDO_FLAG)) {
-                try {
-                    callAgent(null, true, style);
-                    return true;
-                } catch (Throwable t2) {
-                    throw new SASupportException("Unable to attach even with escalated privileges: " + t2.getMessage(), t2);
-                }
-            } else {
-                throw new SASupportException("You can try again with escalated privileges. " +
-                        "Two options: a) use -D" + TRY_WITH_SUDO_FLAG + "=true to try with sudo; b) echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope");
-            }
+            // fallthrough
+        }
+
+        if (!isSudoValidOS() || !Boolean.getBoolean(TRY_WITH_SUDO_FLAG)) {
+            throw new SASupportException("You can try again with escalated privileges. " +
+                    "Two options: a) use -D" + TRY_WITH_SUDO_FLAG + "=true to try with sudo; b) echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope");
+        }
+
+        try {
+            callAgent(null, true, style);
+            return true;
+        } catch (Throwable t2) {
+            throw new SASupportException("Unable to attach even with escalated privileges: " + t2.getMessage(), t2);
         }
     }
 

@@ -52,21 +52,16 @@ public class VM {
     public static VirtualMachine current() {
         if (INSTANCE != null) return INSTANCE;
 
-        String name = System.getProperty("java.vm.name");
-        if (!name.contains("HotSpot") && !name.contains("OpenJDK")) {
-            throw new IllegalStateException("Only HotSpot/OpenJDK VMs are supported");
-        }
-
-        Unsafe u = tryUnsafe();
-        if (u == null) {
-            throw new IllegalStateException("Unsafe is not available.");
-        }
-
         Instrumentation inst = null;
         try {
             inst = InstrumentationSupport.instance();
         } catch (Exception e) {
             System.out.println("# WARNING: Unable to get Instrumentation. " + e.getMessage());
+        }
+
+        Unsafe u = tryUnsafe();
+        if (u == null) {
+            throw new IllegalStateException("Unsafe is not available.");
         }
 
         try {

@@ -649,46 +649,6 @@ class HotspotUnsafe implements VirtualMachine {
         }
     }
 
-    private long toJvmAddress(long address) {
-        if (compressedOopsEnabled) {
-            return (address >> narrowOopShift) - narrowOopBase;
-        } else {
-            return address;
-        }
-    }
-
-    private long toNativeOopAddress(long address) {
-        if (compressedOopsEnabled) {
-            return narrowOopBase + (address << narrowOopShift);
-        } else {
-            return address;
-        }
-    }
-
-    private long toJvmOopAddress(long address) {
-        if (compressedOopsEnabled) {
-            return (address >> narrowOopShift) - narrowOopBase;
-        } else {
-            return address;
-        }
-    }
-
-    private long toNativeKlassAddress(long address) {
-        if (compressedKlassOopsEnabled) {
-            return narrowKlassBase + (address << narrowKlassShift);
-        } else {
-            return address;
-        }
-    }
-
-    private long toJvmKlassAddress(long address) {
-        if (compressedKlassOopsEnabled) {
-            return (address >> narrowKlassShift) - narrowKlassBase;
-        } else {
-            return address;
-        }
-    }
-
     private String formatAddressAsHexByAddressSize(long address) {
         return "0x" + String.format("%s",
                 Long.toHexString(address).toUpperCase()).replace(' ', '0');
