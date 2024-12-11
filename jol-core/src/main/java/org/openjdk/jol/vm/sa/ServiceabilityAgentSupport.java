@@ -83,9 +83,13 @@ public class ServiceabilityAgentSupport {
     private final AgentStyle agentStyle;
 
     private ServiceabilityAgentSupport() {
+        System.out.println("Constructing ServiceabilityAgentSupport");
         processId = getCurrentProcId();
+        System.out.println("Got PID = " + processId);
         agentStyle = senseAgentStyle();
+        System.out.println("Got agent style = " + agentStyle);
         sudoRequired = needSudo(agentStyle);
+        System.out.println("Got sudo required = " + sudoRequired);
     }
 
     private AgentStyle senseAgentStyle() {
