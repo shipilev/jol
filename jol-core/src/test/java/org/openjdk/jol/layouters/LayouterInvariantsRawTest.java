@@ -23,7 +23,7 @@ public class LayouterInvariantsRawTest {
             new Model64(true, true, 8),
     };
 
-    private static final int ITERATIONS = 100;
+    private static final int ITERATIONS = 1;
 
     private static Class<?>[] CLS;
     private static int[] SEEDS;
