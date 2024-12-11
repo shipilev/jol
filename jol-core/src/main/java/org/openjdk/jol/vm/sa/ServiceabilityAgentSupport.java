@@ -176,25 +176,32 @@ public class ServiceabilityAgentSupport {
         BufferedReader err = null;
         Process agentProcess = null;
         try {
+            System.out.println("Starting process " + args);
             agentProcess = new ProcessBuilder(args).start();
 
             Request request = new Request(processId, processor, DEFAULT_TIMEOUT_IN_MSECS);
 
             // Get input, output and error streams
+            System.out.println("Getting streams");
             InputStream is = agentProcess.getInputStream();
             OutputStream os = agentProcess.getOutputStream();
             InputStream es = agentProcess.getErrorStream();
 
             // Send request HotSpot agent process to execute
+            System.out.println("Sending request");
             out = new ObjectOutputStream(os);
             out.writeObject(request);
             out.flush();
 
             // At least, for all cases, wait process to finish
+            System.out.println("Waiting");
             int exitCode = agentProcess.waitFor();
+            System.out.println("Wait complete with " + exitCode);
+
             agentProcess = null;
 
             // At first, check errors
+            System.out.println("Checking errors");
             err = new BufferedReader(new InputStreamReader(es));
 
             StringBuilder errBuilder = null;
@@ -208,6 +215,7 @@ public class ServiceabilityAgentSupport {
                 throw new RuntimeException(errBuilder.toString());
             }
 
+            System.out.println("Getting response");
             in = new ObjectInputStream(is);
             // Get response from HotSpot agent process
             Response response = (Response) in.readObject();
@@ -218,11 +226,14 @@ public class ServiceabilityAgentSupport {
                     throw new RuntimeException(error.getMessage(), error);
                 }
 
+                System.out.println("Finished.");
                 return response.getResult();
             } else {
+                System.out.println("Finished: null");
                 return null;
             }
         } catch (Throwable t) {
+            System.out.println("Exception: " + t.getMessage());
             throw new SASupportException(t.getMessage(), t);
         } finally {
             IOUtils.safelyClose(out);
