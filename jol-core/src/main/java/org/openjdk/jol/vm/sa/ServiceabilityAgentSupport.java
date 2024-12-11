@@ -37,6 +37,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jol.util.ClassUtils;
 import org.openjdk.jol.util.IOUtils;
@@ -195,8 +196,10 @@ public class ServiceabilityAgentSupport {
 
             // At least, for all cases, wait process to finish
             System.out.println("Waiting");
-            int exitCode = agentProcess.waitFor();
-            System.out.println("Wait complete with " + exitCode);
+            boolean done = agentProcess.waitFor(DEFAULT_TIMEOUT_IN_MSECS, TimeUnit.MILLISECONDS);
+            if (!done) {
+                throw new IllegalStateException("Timeout waiting for process to respond.");
+            }
 
             agentProcess = null;
 
