@@ -16,7 +16,7 @@ import java.util.Random;
 public class LayouterInvariantsRawTest {
 
     private static final DataModel[] MODELS = {
-//            new ModelVM(),
+            new ModelVM(),
             new Model32(),
             new Model64(false, false, 8),
             new Model64(false, true, 8),
